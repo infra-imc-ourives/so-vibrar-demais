@@ -1,0 +1,80 @@
+INSTRUÇÕES DE PUBLICAÇÃO · SÓ VIBRAR
+Domínio: sovibrar.elainneourives.com.br
+Data: 01/09/2026
+
+=====================================================
+1. O QUE SÃO ESTES ARQUIVOS
+=====================================================
+Quatro versões da página de vendas do Só Vibrar para teste A/B/C/D.
+Cada arquivo é HTML completo e autossuficiente: CSS, imagens (embutidas
+em base64) e scripts estão dentro do próprio arquivo. Não há pasta de
+imagens separada. Basta publicar cada arquivo no caminho indicado.
+
+Arquivo                    URL de publicação
+a-vsl-pura.html            sovibrar.elainneourives.com.br/a/
+b-escada-completa.html     sovibrar.elainneourives.com.br/b/
+c-hibrida.html             sovibrar.elainneourives.com.br/c/
+d-advertorial.html         sovibrar.elainneourives.com.br/d/
+
+A raiz do domínio (sovibrar.elainneourives.com.br/) deve apontar para
+a versão B até que o teste defina a vencedora.
+
+=====================================================
+2. CHECKOUT
+=====================================================
+O link de checkout já está aplicado em todos os botões dos quatro
+arquivos: https://pay.hub.la/hBZXUS60oESBNuUxf9pH
+Nenhuma substituição necessária.
+
+=====================================================
+3. AJUSTE ESPECÍFICO DA VERSÃO A (VSL PURA)
+=====================================================
+No arquivo a-vsl-pura.html, próximo ao final, existe a linha:
+
+    var PITCH_SECONDS = 840;
+
+Este é o segundo do vídeo em que o botão de compra aparece na tela.
+Deve ser igual ao momento exato em que a Elainne inicia a oferta na VSL.
+Valor a confirmar com a Jacky. Se a oferta começa aos 14 min e 30 s,
+o valor é 870 (14 x 60 + 30).
+
+=====================================================
+4. DEPENDÊNCIAS EXTERNAS (carregam da internet, não alterar)
+=====================================================
+- Player da VSL: Vturb (scripts.converteai.net). Código já embutido.
+- Depoimentos (somente versão B): 3 vídeos do YouTube em embed.
+- Fonte: Montserrat via Google Fonts.
+Nenhuma dessas dependências exige configuração adicional.
+
+=====================================================
+5. PUBLICAÇÃO NO WORDPRESS (se for o caso)
+=====================================================
+Opção recomendada: publicar os arquivos HTML diretamente no servidor
+(FTP ou gerenciador de arquivos), cada um em sua pasta, renomeado
+para index.html. Exemplo: /a/index.html, /b/index.html etc.
+
+Alternativa: criar página em branco no WordPress com template "sem
+cabeçalho e rodapé" (canvas ou blank) e colar o conteúdo completo do
+arquivo em um bloco HTML personalizado. Nessa opção, remover as tags
+<!DOCTYPE html>, <html>, <head>, <body> e </html> e mover o conteúdo
+da tag <style> para o CSS adicional do tema.
+
+=====================================================
+6. TRACKING
+=====================================================
+Adicionar o Pixel da Meta e o Google Tag Manager no <head> de cada
+arquivo, conforme padrão das demais páginas do Instituto. Os arquivos
+não contêm pixel para não duplicar o disparo com o container global.
+
+=====================================================
+7. CHECKLIST FINAL ANTES DE LIBERAR TRÁFEGO
+=====================================================
+[ ] Botões apontando para https://pay.hub.la/hBZXUS60oESBNuUxf9pH (já aplicado)
+[ ] PITCH_SECONDS ajustado na versão A
+[ ] Todas as 4 URLs abrem com HTTPS válido
+[ ] VSL carrega e reproduz em cada versão
+[ ] Botões levam ao checkout correto (testar em cada versão)
+[ ] Pixel e GTM disparando (verificar com Meta Pixel Helper)
+[ ] Teste em celular (a maioria do tráfego é mobile)
+
+Dúvidas de conteúdo ou copy: Jacky (Direção IMC Ourives).
