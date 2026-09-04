@@ -17,12 +17,27 @@ são os originais aprovados, sem GTM e sem carimbo de variante.
 | `dist/b/index.html` | `/b/index.html` | `.../b/` |
 | `dist/c/index.html` | `/c/index.html` | `.../c/` |
 | `dist/d/index.html` | `/d/index.html` | `.../d/` |
+| `dist/assets/` (pasta inteira) | `/assets/` | `.../assets/` |
 
 A raiz é uma cópia da variante B, até o teste apontar a vencedora. Para trocar,
 altere `VARIANTE_RAIZ` em `build/build.py` e rode o build de novo.
 
-Cada arquivo continua autossuficiente: CSS, imagens em base64 e scripts estão
-dentro dele. Não há pasta de imagens para subir junto.
+## Mudou: agora existe uma pasta de imagens
+
+Até a otimização de desempenho, cada HTML era autossuficiente, com as imagens
+em base64 dentro dele. **Isso mudou.** As imagens saíram do HTML e vivem em
+`dist/assets/`, e é por isso que a versão A caiu de 270 KB para 11 KB.
+
+Consequências práticas:
+
+- **A pasta `assets/` precisa subir junto, na raiz do domínio**, não dentro de
+  `/a/` ou `/b/`. Os caminhos no HTML são absolutos (`/assets/img-....webp`),
+  então uma única pasta serve as cinco páginas e o navegador reaproveita o
+  cache entre elas.
+- Se você subir só os HTML e esquecer a pasta, **as páginas abrem sem nenhuma
+  imagem**. Logo, fundo, mockups, tudo. Suba `assets/` primeiro.
+- Os nomes dos arquivos têm o conteúdo embutido (`img-<código>.webp`). Trocar
+  uma imagem gera um nome novo, então não existe problema de cache antigo.
 
 ## Como publicar
 
@@ -35,10 +50,12 @@ rodapé (canvas ou blank) e o conteúdo colado em bloco HTML personalizado.
 Nessa opção é preciso remover `<!DOCTYPE html>`, `<html>`, `<head>`, `<body>` e
 `</html>`, e mover o conteúdo de `<style>` para o CSS adicional do tema.
 
-Atenção nessa alternativa: ao remover o `<head>` você remove também o GTM e as
-tags Open Graph. O GTM precisa ser garantido pelo container global do tema, e o
-Open Graph pelo plugin de SEO, página por página. Se nenhum dos dois estiver
-resolvido, o FTP é o caminho.
+Atenção nessa alternativa: ao remover o `<head>` você remove também o GTM, as
+tags Open Graph e o `preload` da imagem do topo. O GTM precisa ser garantido
+pelo container global do tema, e o Open Graph pelo plugin de SEO, página por
+página. Se nenhum dos dois estiver resolvido, o FTP é o caminho.
+
+E a pasta `assets/` continua sendo obrigatória nessa alternativa também.
 
 ## Antes de liberar tráfego
 
@@ -55,6 +72,13 @@ resolvido, o FTP é o caminho.
 - [ ] Clique em um botão de cada versão levando ao checkout **com o `sv_var`
       correto na URL**. Este item é o que torna o teste legível: se o parâmetro
       não chegar, não suba tráfego.
+- [ ] Pasta `assets/` no ar. Abra `sovibrar.elainneourives.com.br/assets/` e
+      confirme que o servidor entrega os arquivos. Sem ela, as páginas ficam
+      sem imagem nenhuma.
+- [ ] Compactação ativada no servidor (gzip ou brotli) para HTML, CSS e JS.
+      Os arquivos WebP já são comprimidos e não precisam.
+- [ ] Cache de longa duração para `/assets/`. Os nomes carregam o conteúdo,
+      então `Cache-Control: public, max-age=31536000, immutable` é seguro.
 - [ ] Teste em celular real, não só no emulador do navegador. A maioria do
       tráfego é mobile.
 - [ ] Na versão A, confirmar que o botão não aparece antes do pitch. Dê play,

@@ -16,6 +16,10 @@ Uso:  python3 build/build.py
 import os
 import re
 import shutil
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import otimizacao
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE = os.path.join(RAIZ, "baseline")
@@ -26,6 +30,11 @@ DOMINIO = "https://sovibrar.elainneourives.com.br"
 # Imagem de compartilhamento. PRECISA ser enviada para a raiz do domínio.
 # Enquanto o arquivo não existir, o link compartilhado no WhatsApp aparece sem capa.
 OG_IMAGE = DOMINIO + "/og-so-vibrar.jpg"
+
+# Otimizações de carregamento. Ver docs/desempenho.md antes de desligar.
+EXTRAIR_IMAGENS = True   # tira as imagens de base64 do HTML e põe em /assets
+ADIAR_PLAYER = True      # pede o script da VSL fora do caminho crítico
+AJUSTAR_FONTES = True    # pede ao Google Fonts só os pesos que a página usa
 
 # Container do Google Tag Manager do Instituto. Todo o tracking (Pixel da Meta,
 # GA4, conversões) deve ser disparado por dentro dele, nunca colado direto na
@@ -44,6 +53,8 @@ VARIANTES = {
             "Existe um cadeado invisível travando a sua vida, e não é falta de "
             "esforço. Assista ao vídeo e descubra os 5 cadeados emocionais."
         ),
+        "pesos": [400, 700, 800],
+        "italico": False,
     },
     "b": {
         "arquivo": "b-escada-completa.html",
@@ -52,6 +63,8 @@ VARIANTES = {
             "10 minutos por dia é o que você precisa para transformar sua vida. "
             "Destrave os poderes ocultos da sua mente com o Só Vibrar."
         ),
+        "pesos": [400, 600, 700, 800, 900],
+        "italico": False,
     },
     "c": {
         "arquivo": "c-hibrida.html",
@@ -60,6 +73,8 @@ VARIANTES = {
             "Elainne Ourives revela os 5 cadeados emocionais que mantêm você no "
             "mesmo lugar e a chave de 10 minutos por dia que abre cada um deles."
         ),
+        "pesos": [400, 800, 900],
+        "italico": False,
     },
     "d": {
         "arquivo": "d-advertorial.html",
@@ -68,6 +83,8 @@ VARIANTES = {
             "Por que algumas pessoas fazem de tudo e não saem do lugar? A resposta "
             "pode estar em 5 cadeados emocionais que operam no inconsciente."
         ),
+        "pesos": [400, 700, 800, 900],
+        "italico": True,
     },
 }
 
@@ -286,13 +303,33 @@ def main():
         shutil.rmtree(DIST)
     os.makedirs(DIST)
 
+    pasta_assets = os.path.join(DIST, "assets")
+    catalogo = {}
+    adiados = []
+
     for variante, dados in VARIANTES.items():
         origem = os.path.join(BASELINE, dados["arquivo"])
         with open(origem, encoding="utf-8") as f:
             html = f.read()
 
+        bruto = len(html)
+
         html = aplicar_gtm(html)
         html = aplicar_head(html, variante, dados)
+
+        if EXTRAIR_IMAGENS:
+            html, tamanhos = otimizacao.extrair_imagens(html, pasta_assets, catalogo)
+            html = otimizacao.anotar_imagens(html, tamanhos)
+            html = otimizacao.preload_do_topo(html)
+
+        if AJUSTAR_FONTES:
+            html = otimizacao.ajustar_fontes(html, dados["pesos"], dados["italico"])
+
+        if ADIAR_PLAYER:
+            html, trocou = otimizacao.adiar_player(html)
+            if trocou:
+                adiados.append(variante)
+
         html = aplicar_atribuicao(html, variante)
         if variante == "a":
             html = aplicar_cta_a(html)
@@ -304,14 +341,28 @@ def main():
             f.write(html)
 
         kb = os.path.getsize(caminho) / 1024
-        print("  dist/%s/index.html  (%.0f KB)" % (variante, kb))
+        print("  dist/%s/index.html  %6.0f KB   (era %.0f KB, %.0f%% menor)"
+              % (variante, kb, bruto / 1024, 100 * (1 - kb * 1024 / bruto)))
 
     # Raiz do domínio serve a mesma página da variante escolhida.
     shutil.copyfile(
         os.path.join(DIST, VARIANTE_RAIZ, "index.html"),
         os.path.join(DIST, "index.html"),
     )
-    print("  dist/index.html      (cópia da variante %s)" % VARIANTE_RAIZ.upper())
+    print("  dist/index.html             (cópia da variante %s)" % VARIANTE_RAIZ.upper())
+
+    if EXTRAIR_IMAGENS and os.path.isdir(pasta_assets):
+        arquivos = sorted(os.listdir(pasta_assets))
+        total = sum(os.path.getsize(os.path.join(pasta_assets, a)) for a in arquivos)
+        print("\n  dist/assets/  %d imagens, %.0f KB no total" % (len(arquivos), total / 1024))
+        for a in arquivos:
+            print("     %-28s %6.0f KB" % (a, os.path.getsize(os.path.join(pasta_assets, a)) / 1024))
+        if not otimizacao.PILLOW:
+            print("     AVISO: Pillow ausente. Sem conversão para WebP e sem width/height.")
+
+    if ADIAR_PLAYER:
+        print("\n  Player adiado nas versões: %s" % ", ".join(sorted(adiados)).upper())
+
     print("\nBuild concluído. Confirme PITCH_SECONDS antes de liberar tráfego.")
 
 
