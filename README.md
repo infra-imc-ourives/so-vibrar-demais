@@ -15,6 +15,9 @@ Container GTM: `GTM-PX6PZLNQ`
 | `baseline/` | Os quatro HTML exatamente como foram aprovados. **Nunca editar direto.** |
 | `build/build.py` | Aplica as correções técnicas sobre o baseline. Não toca em copy. |
 | `build/otimizacao.py` | Otimizações de carregamento usadas pelo build. |
+| `build/fontes.py` | Hospeda a Montserrat no próprio domínio, reduzida à copy. |
+| `build/medir_secoes.py` | Mede a altura das seções. Roda só quando a copy muda. |
+| `servidor/` | Compressão e cache. Compressão e cache não se resolvem no HTML. |
 | `dist/` | O que vai para o servidor. Gerado pelo build, versionado para conferência. |
 | `dist/assets/` | Imagens extraídas do HTML. **Sobe junto, na raiz do domínio.** |
 | `docs/` | Plano do teste, auditoria técnica e instruções de publicação. |
@@ -60,9 +63,22 @@ O que o build aplica em cada arquivo:
    usam de três a cinco.
 8. **Player da VSL** pedido fora do caminho crítico, sem mudar onde o vídeo
    aparece nem exigir clique a mais.
+9. **Montserrat no próprio domínio**, reduzida aos 171 caracteres que a copy
+   usa. Tira um pedido que bloqueia a renderização e dois domínios externos.
+10. **Depoimentos do YouTube** só montam o player ao toque. Tira mais de três
+    megabytes do carregamento da versão B. O vídeo abre já tocando.
+11. **Seções longe da dobra** saem do layout inicial na versão B, com a altura
+    real de cada uma reservada.
 
-As três otimizações têm interruptor no topo de `build/build.py`:
-`EXTRAIR_IMAGENS`, `ADIAR_PLAYER` e `AJUSTAR_FONTES`.
+Cada otimização tem interruptor no topo de `build/build.py`: `EXTRAIR_IMAGENS`,
+`ADIAR_PLAYER`, `AJUSTAR_FONTES`, `FONTES_PROPRIAS`, `FACADE_YOUTUBE` e
+`ADIAR_SECOES`.
+
+Quando a copy mudar a altura das seções da versão B, refaça a medição:
+
+```bash
+python3 build/build.py && python3 build/medir_secoes.py && python3 build/build.py
+```
 
 ## Antes de mexer
 

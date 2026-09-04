@@ -13,6 +13,7 @@ href de checkout e no script de revelação do CTA da versão A.
 Uso:  python3 build/build.py
 """
 
+import json
 import os
 import re
 import shutil
@@ -20,6 +21,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import otimizacao
+import fontes
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE = os.path.join(RAIZ, "baseline")
@@ -35,6 +37,9 @@ OG_IMAGE = DOMINIO + "/og-so-vibrar.jpg"
 EXTRAIR_IMAGENS = True   # tira as imagens de base64 do HTML e põe em /assets
 ADIAR_PLAYER = True      # pede o script da VSL fora do caminho crítico
 AJUSTAR_FONTES = True    # pede ao Google Fonts só os pesos que a página usa
+FONTES_PROPRIAS = True   # hospeda a Montserrat no próprio domínio, reduzida
+FACADE_YOUTUBE = True    # depoimentos do YouTube só montam o player ao toque
+ADIAR_SECOES = True      # seções longe da dobra não entram no layout inicial
 
 # Container do Google Tag Manager do Instituto. Todo o tracking (Pixel da Meta,
 # GA4, conversões) deve ser disparado por dentro dele, nunca colado direto na
@@ -305,7 +310,16 @@ def main():
 
     pasta_assets = os.path.join(DIST, "assets")
     catalogo = {}
+    catalogo_fontes = {}
     adiados = []
+    avisos = []
+    resumo_fontes = None
+
+    caminho_alturas = os.path.join(RAIZ, "build", "alturas-secoes.json")
+    alturas = {}
+    if os.path.exists(caminho_alturas):
+        with open(caminho_alturas, encoding="utf-8") as f:
+            alturas = json.load(f).get("alturas", {})
 
     for variante, dados in VARIANTES.items():
         origem = os.path.join(BASELINE, dados["arquivo"])
@@ -324,6 +338,28 @@ def main():
 
         if AJUSTAR_FONTES:
             html = otimizacao.ajustar_fontes(html, dados["pesos"], dados["italico"])
+
+        if FONTES_PROPRIAS:
+            html, rel = fontes.aplicar(html, dados["pesos"], dados["italico"],
+                                       pasta_assets, catalogo_fontes)
+            if rel["ok"]:
+                resumo_fontes = rel
+            else:
+                avisos.append("versão %s continua no Google Fonts: %s"
+                              % (variante.upper(), rel["motivo"]))
+
+        if FACADE_YOUTUBE:
+            html, n_yt = otimizacao.facade_youtube(html)
+            if n_yt:
+                print("     versão %s: %d vídeos do YouTube passaram a carregar ao toque"
+                      % (variante.upper(), n_yt))
+
+        if ADIAR_SECOES:
+            html, n_sec = otimizacao.pular_render_fora_da_tela(
+                html, alturas.get(variante))
+            if n_sec:
+                print("     versão %s: %d seções fora da dobra saíram do layout inicial"
+                      % (variante.upper(), n_sec))
 
         if ADIAR_PLAYER:
             html, trocou = otimizacao.adiar_player(html)
@@ -352,7 +388,8 @@ def main():
     print("  dist/index.html             (cópia da variante %s)" % VARIANTE_RAIZ.upper())
 
     if EXTRAIR_IMAGENS and os.path.isdir(pasta_assets):
-        arquivos = sorted(os.listdir(pasta_assets))
+        arquivos = sorted(a for a in os.listdir(pasta_assets)
+                          if os.path.isfile(os.path.join(pasta_assets, a)))
         total = sum(os.path.getsize(os.path.join(pasta_assets, a)) for a in arquivos)
         print("\n  dist/assets/  %d imagens, %.0f KB no total" % (len(arquivos), total / 1024))
         for a in arquivos:
@@ -362,6 +399,18 @@ def main():
 
     if ADIAR_PLAYER:
         print("\n  Player adiado nas versões: %s" % ", ".join(sorted(adiados)).upper())
+
+    if resumo_fontes:
+        pasta_f = os.path.join(pasta_assets, "fonts")
+        arqs = sorted(os.listdir(pasta_f))
+        total = sum(os.path.getsize(os.path.join(pasta_f, a)) for a in arqs)
+        print("\n  dist/assets/fonts/  %d arquivos, %.0f KB, %d glifos por fonte"
+              % (len(arqs), total / 1024, resumo_fontes["glifos"]))
+        for a in arqs:
+            print("     %-30s %6.1f KB" % (a, os.path.getsize(os.path.join(pasta_f, a)) / 1024))
+
+    for a in avisos:
+        print("\n  AVISO: %s" % a)
 
     print("\nBuild concluído. Confirme PITCH_SECONDS antes de liberar tráfego.")
 

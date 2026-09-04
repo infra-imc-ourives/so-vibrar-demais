@@ -175,3 +175,192 @@ Nenhuma das duas é feita pelo build, e as duas valem pontos reais:
 2. **Cache longo para `/assets/`.** Os nomes dos arquivos carregam o conteúdo
    (`img-<código>.webp`), então `Cache-Control: public, max-age=31536000,
    immutable` é seguro: se a imagem mudar, o nome muda junto.
+
+---
+
+# Segunda rodada
+
+Feita sobre os relatórios do PageSpeed de 4 de setembro nas URLs já publicadas.
+
+## Ponto de partida real
+
+| URL | Versão | Nota | Práticas recomendadas |
+|---|---|---|---|
+| `sovibrar1` | A · VSL pura | 66 | 96 |
+| `sovibrar2` | B · escada completa | **43** | **73** |
+| `sovibrar3` | C · híbrida | 67 | 96 |
+| `sovibrar4` | D · advertorial | 71 | 96 |
+
+A primeira rodada valeu 20 pontos na versão A, de 46 para 66. Mas a B ficou em
+43, e ela é a única com "Práticas recomendadas" em 73 contra 96 das outras.
+Diferença de 23 pontos numa categoria inteira, só nela. Isso aponta para algo
+específico da B, não para um problema geral.
+
+## O que a B tem que as outras não têm
+
+**Três iframes do YouTube.** Cada player do YouTube carrega mais de um megabyte
+de JavaScript, abre conexão com três domínios e grava cookies de terceiro. Os
+cookies de terceiro são justamente o que a categoria "Práticas recomendadas"
+penaliza. [Provável, alto]
+
+Os iframes já tinham `loading="lazy"`, mas isso apenas adia: quando a pessoa
+rola até os depoimentos, o megabyte chega inteiro.
+
+**E 18.554 px de altura**, cerca de 21 telas de celular. Sem nenhuma instrução
+em contrário, o navegador calcula o layout e a pintura das 21 telas antes de
+mostrar a primeira.
+
+## O que foi feito nesta rodada
+
+### 1. Montserrat hospedada no próprio domínio, reduzida à copy
+
+Esta é a maior mudança, e vale para as quatro versões.
+
+O que existia antes:
+
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:..." rel="stylesheet">
+```
+
+Três problemas nessa estrutura:
+
+1. **O `<link rel="stylesheet"` bloqueia a renderização.** A página não pinta
+   nada enquanto o Google não responde.
+2. **São dois domínios novos**, cada um com DNS, TCP e TLS próprios antes do
+   primeiro byte útil. Em 4G lento isso custa algumas centenas de milissegundos,
+   duas vezes.
+3. **A fonte vinha inteira.** O subconjunto latino da Montserrat tem cerca de
+   380 glifos, cobrindo dezenas de idiomas europeus. A copy de vocês usa 171.
+
+Agora a fonte é servida do próprio domínio, já reduzida aos caracteres que a
+copy usa, e pré-carregada no primeiro instante:
+
+| Arquivo | Tamanho |
+|---|---|
+| `montserrat-400.woff2` | 12,4 KB |
+| `montserrat-600.woff2` | 12,6 KB |
+| `montserrat-700.woff2` | 12,5 KB |
+| `montserrat-800.woff2` | 12,5 KB |
+| `montserrat-900.woff2` | 12,0 KB |
+| `montserrat-400i.woff2` | 12,6 KB |
+
+O subconjunto é calculado do texto das páginas mais uma margem com todo o
+alfabeto acentuado do português, dígitos e pontuação, e é recalculado a cada
+build. Se algum caractere da copy ficasse de fora, o build **não** aplica a
+troca e mantém o Google Fonts, em vez de publicar uma página com letra faltando.
+
+Os dois `preconnect` que serviam ao Google foram reaproveitados para os
+terceiros que continuam existindo: `scripts.converteai.net` e
+`www.googletagmanager.com`.
+
+### 2. Depoimentos do YouTube só montam o player ao toque
+
+Os três iframes viraram capas clicáveis. A página mostra a miniatura do vídeo,
+que pesa poucos kilobytes, e monta o player quando a pessoa toca. **O vídeo abre
+já tocando, então continua sendo um toque só.**
+
+Isso tira mais de três megabytes de JavaScript do carregamento da B e elimina os
+cookies de terceiro, que é o que derruba a categoria "Práticas recomendadas".
+
+Cuidados incluídos: a capa responde a teclado (`Enter` e espaço), tem
+`role="button"` e rótulo acessível, e se a miniatura não vier (bloqueador, rede),
+ela some em vez de mostrar o ícone de imagem quebrada. O toque dispara
+`sv_depoimento_play` no `dataLayer`, então dá para medir quantas pessoas de fato
+assistem aos depoimentos.
+
+### 3. Seções longe da dobra saem do layout inicial
+
+Nove seções da B receberam `content-visibility:auto`. O navegador só calcula o
+layout delas quando chegam perto da tela.
+
+Isso só funciona bem com a altura de cada seção reservada. Com uma estimativa
+única de 900 px, uma seção de 4.304 px faria a barra de rolagem saltar enquanto
+a pessoa desce. Por isso as alturas reais são medidas e gravadas em
+`build/alturas-secoes.json`:
+
+```
+B: [1126, 982, 1325, 1337, 1076, 2319, 1598, 4304, 1484, 633, 1749]
+```
+
+Medido depois: a altura total varia 6,7% durante a rolagem, com salto máximo de
+144 px, menos de um sexto de tela. **Custo honesto: o CLS da B saiu de 0 para
+0,042.** Continua dentro da faixa boa do Google, que é abaixo de 0,1, mas deixou
+de ser zero. Se preferirem zero, `ADIAR_SECOES = False` no topo de
+`build/build.py` desliga só isso.
+
+O script `build/medir_secoes.py` refaz a medição quando a copy mudar a altura
+das seções.
+
+## Medição
+
+Lighthouse 12, celular, 4G lento, mesma máquina e mesmo servidor local nas três
+rodadas.
+
+| Versão | | Nota | FCP | LCP | CLS |
+|---|---|---|---|---|---|
+| **A** | original | 82 | 2,7 s | 2,8 s | 0 |
+| | rodada 1 | 89 | 1,4 s | 1,8 s | 0 |
+| | rodada 2 | **100** | **0,8 s** | **1,7 s** | 0 |
+| **B** | original | 65 | 4,5 s | 4,6 s | 0 |
+| | rodada 1 | 88 | 1,7 s | 2,3 s | 0 |
+| | rodada 2 | **99** | **1,4 s** | **2,1 s** | 0,04 |
+| **C** | rodada 1 | 89 | 1,4 s | 1,8 s | 0 |
+| | rodada 2 | **100** | **0,8 s** | **1,7 s** | 0 |
+| **D** | rodada 1 | 90 | 1,4 s | 1,4 s | 0 |
+| | rodada 2 | **100** | **1,1 s** | **1,5 s** | 0 |
+
+Acessibilidade 96 a 98, práticas recomendadas 96, SEO 100 nas quatro.
+
+**Estes 100 não são o que o PageSpeed vai mostrar.** Nesta máquina não carregam
+o player da Vturb, o GTM, o YouTube nem o `i.ytimg.com`. A medição isola o custo
+da própria página, e nesse recorte não há mais nada relevante a otimizar.
+
+## Expectativa honesta para o PageSpeed real
+
+| Versão | Hoje | O que muda | Expectativa |
+|---|---|---|---|
+| **B** | 43 | 3 MB de YouTube saem do carregamento, 9 seções saem do layout inicial, Google Fonts sai | maior salto absoluto das quatro |
+| **C** | 67 | Google Fonts sai, duas conexões a menos | acima de 80 é provável |
+| **D** | 71 | Google Fonts sai, duas conexões a menos | acima de 80 é provável |
+| **A** | 66 | Google Fonts sai | o mais difícil dos quatro |
+
+**A versão A é o caso mais difícil, e a razão é estrutural:** a página é o vídeo.
+Tirando o player da Vturb, não sobra praticamente nada para otimizar, e o player
+é justamente o que responde pelo tempo de bloqueio. A nota dela fica presa ao
+que a Vturb entrega.
+
+## As duas alavancas que sobram, as duas com custo
+
+**1. Capa clicável também na VSL.** A mesma técnica dos depoimentos aplicada ao
+vídeo principal: a página mostra uma imagem com botão de play e monta o player
+da Vturb ao toque. Tecnicamente é a mudança que mais valeria pontos, e é a única
+que colocaria a versão A com folga acima de 80.
+
+O custo não é técnico, é de funil: se a VSL hoje começa sozinha, ela passaria a
+exigir um toque. Em VSL isso costuma ser aceitável e, com som liberado pelo
+gesto da pessoa, às vezes melhora a retenção. Mas é mudança de comportamento do
+funil, não de código, e a decisão é de vocês.
+
+**2. Trocar o player.** Resolve de vez e mexe em retenção, eventos e relatório
+de audiência da VSL. Conversa maior.
+
+## O que depende do servidor, não do código
+
+A pasta `servidor/` traz os arquivos prontos, `.htaccess` para Apache e
+LiteSpeed, e `nginx.conf` para Nginx. Os dois pontos que eles resolvem **não têm
+como ser resolvidos dentro do HTML**:
+
+- **Compressão.** Os 50 KB de HTML da versão B chegam ao celular com cerca de
+  12 KB. Aparece direto no FCP em 4G.
+- **Cache longo em `/assets/`.** Os nomes carregam o conteúdo, então é seguro.
+  Sem ele, cada visita rebaixa imagens e fontes de novo.
+
+Confira depois de aplicar:
+
+```bash
+curl -sI -H "Accept-Encoding: gzip, br" https://sovibrar1.elainneourives.com.br/ | grep -i content-encoding
+```
+
+Se não voltar nada, a hospedagem ignorou a configuração e vale abrir chamado.

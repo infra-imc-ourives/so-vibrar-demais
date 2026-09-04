@@ -18,6 +18,7 @@ são os originais aprovados, sem GTM e sem carimbo de variante.
 | `dist/c/index.html` | `/c/index.html` | `.../c/` |
 | `dist/d/index.html` | `/d/index.html` | `.../d/` |
 | `dist/assets/` (pasta inteira) | `/assets/` | `.../assets/` |
+| `servidor/.htaccess` (Apache/LiteSpeed) | `/.htaccess` | não é URL |
 
 A raiz é uma cópia da variante B, até o teste apontar a vencedora. Para trocar,
 altere `VARIANTE_RAIZ` em `build/build.py` e rode o build de novo.
@@ -75,10 +76,12 @@ E a pasta `assets/` continua sendo obrigatória nessa alternativa também.
 - [ ] Pasta `assets/` no ar. Abra `sovibrar.elainneourives.com.br/assets/` e
       confirme que o servidor entrega os arquivos. Sem ela, as páginas ficam
       sem imagem nenhuma.
-- [ ] Compactação ativada no servidor (gzip ou brotli) para HTML, CSS e JS.
-      Os arquivos WebP já são comprimidos e não precisam.
-- [ ] Cache de longa duração para `/assets/`. Os nomes carregam o conteúdo,
-      então `Cache-Control: public, max-age=31536000, immutable` é seguro.
+- [ ] Configuração do servidor aplicada. Use `servidor/.htaccess` (Apache,
+      LiteSpeed, cPanel) ou `servidor/nginx.conf`. Confira depois com
+      `curl -sI -H "Accept-Encoding: gzip, br" <url> | grep -i content-encoding`.
+- [ ] Fontes servindo de `/assets/fonts/`. Abra uma página e confirme no
+      inspetor que a Montserrat carrega do seu domínio, não do Google.
+- [ ] Na versão B, tocar em um depoimento abre o vídeo já tocando.
 - [ ] Teste em celular real, não só no emulador do navegador. A maioria do
       tráfego é mobile.
 - [ ] Na versão A, confirmar que o botão não aparece antes do pitch. Dê play,

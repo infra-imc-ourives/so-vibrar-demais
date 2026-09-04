@@ -1,0 +1,76 @@
+# Só Vibrar · configuração de entrega (Apache, LiteSpeed, cPanel)
+#
+# Suba este arquivo para a RAIZ do domínio, junto com index.html e a pasta
+# assets. Ele não muda nada do conteúdo das páginas: só instrui o servidor a
+# comprimir o que envia e a mandar o navegador guardar as imagens e fontes.
+#
+# Os dois itens abaixo valem pontos no PageSpeed e não podem ser resolvidos
+# dentro do HTML.
+
+# ---------------------------------------------------------------
+# 1. Compressão
+# ---------------------------------------------------------------
+# HTML, CSS e JavaScript são texto e comprimem muito bem. A versão B tem
+# cerca de 50 KB de HTML e chega ao celular com aproximadamente 12 KB.
+# WebP e woff2 já vêm comprimidos e ficam de fora de propósito: comprimir
+# de novo gasta CPU e não reduz nada.
+
+<IfModule mod_brotli.c>
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/css text/plain text/xml
+  AddOutputFilterByType BROTLI_COMPRESS application/javascript application/json
+  AddOutputFilterByType BROTLI_COMPRESS image/svg+xml
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml
+  AddOutputFilterByType DEFLATE application/javascript application/json
+  AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# ---------------------------------------------------------------
+# 2. Cache
+# ---------------------------------------------------------------
+# Os nomes dos arquivos em /assets carregam o próprio conteúdo
+# (img-<código>.webp). Se a imagem mudar, o nome muda junto, então guardar
+# por um ano é seguro e nunca serve conteúdo velho.
+#
+# O HTML fica sem cache longo de propósito: é o arquivo que muda quando a
+# copy ou a oferta mudam, e precisa chegar atualizado na hora.
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/webp                    "access plus 1 year"
+  ExpiresByType image/jpeg                    "access plus 1 year"
+  ExpiresByType image/png                     "access plus 1 year"
+  ExpiresByType font/woff2                    "access plus 1 year"
+  ExpiresByType text/html                     "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(webp|jpg|jpeg|png|gif|woff2)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# ---------------------------------------------------------------
+# 3. Tipos de arquivo
+# ---------------------------------------------------------------
+# Servidor antigo às vezes não conhece WebP nem woff2 e entrega como
+# download em vez de imagem ou fonte.
+
+<IfModule mod_mime.c>
+  AddType image/webp .webp
+  AddType font/woff2 .woff2
+</IfModule>
+
+# ---------------------------------------------------------------
+# 4. HTTPS
+# ---------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+</IfModule>

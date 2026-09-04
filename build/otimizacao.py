@@ -216,3 +216,141 @@ def adiar_player(html):
         return html, False
     novo = SCRIPT_PLAYER_ADIADO.replace("__PLAYER_SRC__", m.group(1))
     return html[:m.start()] + novo + html[m.end():], True
+
+
+# ---------------------------------------------------- vídeos do YouTube
+
+FACADE_CSS = """
+.yt-facade{position:relative;display:block;width:100%;height:100%;border:0;
+border-radius:inherit;overflow:hidden;cursor:pointer;background:#000}
+.yt-facade img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.yt-facade .yt-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+width:64px;height:46px;border-radius:12px;background:rgba(0,0,0,0.72);
+display:flex;align-items:center;justify-content:center;transition:background .18s ease}
+.yt-facade:hover .yt-play,.yt-facade:focus-visible .yt-play{background:#FF0000}
+.yt-facade .yt-play::after{content:"";border-style:solid;border-width:11px 0 11px 19px;
+border-color:transparent transparent transparent #fff;margin-left:4px}
+.yt-facade iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+"""
+
+FACADE_JS = """
+<script>
+/* === Depoimentos do YouTube · carregamento sob demanda ===
+   Cada player do YouTube custa mais de um megabyte de JavaScript e disputa a
+   linha principal do navegador. Aqui a página mostra a capa do vídeo, que pesa
+   alguns kilobytes, e só monta o player quando a pessoa toca para assistir.
+   O vídeo abre já tocando, então o toque continua sendo um só. */
+document.addEventListener('click', function (e) {
+  var alvo = e.target.closest ? e.target.closest('.yt-facade') : null;
+  if (!alvo || alvo.dataset.pronto) return;
+  alvo.dataset.pronto = '1';
+  var f = document.createElement('iframe');
+  f.src = 'https://www.youtube.com/embed/' + alvo.dataset.video +
+          '?autoplay=1&rel=0&modestbranding=1';
+  f.title = alvo.dataset.titulo || 'Depoimento';
+  f.allow = 'accelerometer; autoplay; encrypted-media; picture-in-picture';
+  f.setAttribute('allowfullscreen', '');
+  alvo.innerHTML = '';
+  alvo.appendChild(f);
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: 'sv_depoimento_play', sv_video: alvo.dataset.video });
+}, true);
+
+/* Teclado: o card é um botão, então espaço e enter também abrem o vídeo. */
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  var alvo = e.target.classList && e.target.classList.contains('yt-facade') ? e.target : null;
+  if (!alvo) return;
+  e.preventDefault();
+  alvo.click();
+});
+
+/* Se a capa não vier (bloqueador, rede), some com ela em vez de mostrar o
+   ícone de imagem quebrada. O fundo preto com o botão continua legível. */
+document.addEventListener('error', function (e) {
+  var img = e.target;
+  if (img.tagName === 'IMG' && img.parentElement &&
+      img.parentElement.classList.contains('yt-facade')) {
+    img.style.display = 'none';
+  }
+}, true);
+</script>
+"""
+
+
+def facade_youtube(html):
+    """Troca cada iframe do YouTube por uma capa clicável."""
+    achados = [0]
+
+    def trocar(m):
+        tag = m.group(0)
+        vid = re.search(r'youtube\.com/embed/([A-Za-z0-9_-]+)', tag)
+        if not vid:
+            return tag
+        achados[0] += 1
+        titulo = re.search(r'title="([^"]*)"', tag)
+        return (
+            '<div class="yt-facade" data-video="%s" data-titulo="%s" '
+            'role="button" tabindex="0" aria-label="Assistir ao depoimento">'
+            '<img src="https://i.ytimg.com/vi/%s/hqdefault.jpg" alt="" '
+            'loading="lazy" decoding="async" width="480" height="360">'
+            '<span class="yt-play" aria-hidden="true"></span></div>'
+            % (vid.group(1), titulo.group(1) if titulo else "Depoimento", vid.group(1))
+        )
+
+    novo = re.sub(r'<iframe\b[^>]*youtube\.com/embed/[^>]*>\s*</iframe>', trocar, html)
+    if not achados[0]:
+        novo = re.sub(r'<iframe\b[^>]*youtube\.com/embed/[^>]*>', trocar, html)
+    if not achados[0]:
+        return html, 0
+
+    novo = novo.replace("<style>", "<style>" + FACADE_CSS, 1)
+    novo = novo.replace("</body>", FACADE_JS + "</body>", 1)
+    return novo, achados[0]
+
+
+# ------------------------------------------- seções fora da tela
+
+def pular_render_fora_da_tela(html, alturas=None, a_partir_de=2, minimo_total=6000):
+    """Deixa o navegador adiar o trabalho de layout das seções longe da dobra.
+
+    Só faz sentido em página muito longa: a versão B tem 18.554 px em celular,
+    cerca de 21 telas. Sem isso, o navegador calcula o layout e a pintura das
+    21 telas antes de mostrar a primeira.
+
+    `contain-intrinsic-size` reserva a altura de cada seção enquanto ela não é
+    renderizada. As alturas vêm medidas de build/alturas-secoes.json: com uma
+    estimativa única, uma seção de 4.304 px reservaria 900 px e a barra de
+    rolagem saltaria enquanto a pessoa desce. Sem as medidas, a função não faz
+    nada, porque o salto custa mais do que o ganho."""
+    if not alturas:
+        return html, 0
+    if sum(alturas) < minimo_total:
+        return html, 0
+
+    contador = [0]
+    usadas = []
+
+    def trocar(m):
+        i = contador[0]
+        contador[0] += 1
+        if i < a_partir_de or i >= len(alturas):
+            return m.group(0)
+        usadas.append((i, alturas[i]))
+        tag = m.group(0)
+        classes = "sv-adiada sv-s%d" % i
+        if 'class="' in tag:
+            return tag.replace('class="', 'class="%s ' % classes, 1)
+        return tag[:-1] + ' class="%s">' % classes
+
+    novo_html = re.sub(r'<section\b[^>]*>', trocar, html)
+    if not usadas:
+        return html, 0
+
+    regras = ["\nsection.sv-adiada{content-visibility:auto}"]
+    for i, h in usadas:
+        regras.append("section.sv-s%d{contain-intrinsic-size:auto %dpx}" % (i, h))
+    regras.append("")
+
+    novo_html = novo_html.replace("<style>", "<style>" + "\n".join(regras), 1)
+    return novo_html, len(usadas)
