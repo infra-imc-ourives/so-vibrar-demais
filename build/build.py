@@ -41,6 +41,12 @@ FONTES_PROPRIAS = True   # hospeda a Montserrat no próprio domínio, reduzida
 FACADE_YOUTUBE = True    # depoimentos do YouTube só montam o player ao toque
 ADIAR_SECOES = True      # seções longe da dobra não entram no layout inicial
 
+# Conta da VK Digital. Os scripts abaixo são os fornecidos pela VK, mantidos
+# palavra por palavra. Se a VK enviar versão nova, troque aqui e rode o build:
+# nunca edite dist/ direto, a mudança some na próxima geração.
+VK_CONTA = "QPCsaqlFossljbjphJFJ"
+INSTALAR_VK = True
+
 # Container do Google Tag Manager do Instituto. Todo o tracking (Pixel da Meta,
 # GA4, conversões) deve ser disparado por dentro dele, nunca colado direto na
 # página, para não duplicar evento com o container global.
@@ -133,6 +139,61 @@ def aplicar_gtm(html):
         "<body>\n" + GTM_BODY.replace("__GTM_ID__", GTM_ID),
         1,
     )
+
+
+# ------------------------------------------------------------ pixels VK
+
+PIXEIS_VK = """<!-- VK Digital -->
+<link rel="preconnect" href="https://cf.vkdigital.com.br" crossorigin>
+<script>
+!function(w,d,c,u){
+  (w.vkPixelSales=w.vkPixelSales||{_q:[]})._q.push(['init',c]);
+  (w.vkPageViewPixel=w.vkPageViewPixel||{_q:[]})._q.push(['init',c,'page_view']);
+  ['https://cf.vkdigital.com.br/sales_pixel.js?v=56','https://cf.vkdigital.com.br/event_pageview.js'].forEach(function(src,i){
+    var s=d.createElement('script');
+    s.src=src;
+    s.async=1;
+    if(i===0) {
+      s.setAttribute('data-no-xcod-url','');
+    }
+    d.head.appendChild(s);
+  });
+}(window,document,'__VK_CONTA__');
+</script>
+
+<script async="true">
+  (function(w, d, s, u) {
+    w.vkPixel = w.vkPixel || { _q: [] };
+    w.vkPixel._q.push(['init', '__VK_CONTA__']);
+    var js = d.createElement(s);
+    js.src = u;
+    js.async = true;
+    d.head.appendChild(js);
+  })(window, document, 'script', 'https://cf.vkdigital.com.br/pixel.js?v=55');
+  </script>
+<!-- End VK Digital -->
+"""
+
+
+def aplicar_vk(html):
+    """Instala os pixels da VK logo abaixo do GTM, no <head>.
+
+    Pixel de atribuição precisa disparar cedo: se a pessoa clicar no checkout
+    antes de ele carregar, a venda chega sem origem. Por isso vai no <head> e
+    não no fim do <body>. Os três arquivos são pedidos de forma assíncrona
+    pelo próprio código da VK, então nada disso bloqueia a renderização.
+
+    O `preconnect` abre a conexão com cf.vkdigital.com.br no primeiro instante,
+    poupando DNS, TCP e TLS quando os scripts forem realmente pedidos."""
+    if "vkdigital" in html:
+        raise SystemExit("ERRO: pixel da VK já presente. Instalar de novo "
+                         "duplicaria o disparo de page_view e de venda.")
+
+    marcador = "<!-- End Google Tag Manager -->\n"
+    bloco = PIXEIS_VK.replace("__VK_CONTA__", VK_CONTA)
+    if marcador in html:
+        return html.replace(marcador, marcador + "\n" + bloco, 1)
+    return html.replace("</head>", bloco + "</head>", 1)
 
 
 # ---------------------------------------------------------------- head
@@ -329,6 +390,8 @@ def main():
         bruto = len(html)
 
         html = aplicar_gtm(html)
+        if INSTALAR_VK:
+            html = aplicar_vk(html)
         html = aplicar_head(html, variante, dados)
 
         if EXTRAIR_IMAGENS:

@@ -70,6 +70,9 @@ E a pasta `assets/` continua sendo obrigatória nessa alternativa também.
       Tag Manager (container `GTM-PX6PZLNQ`).
 - [ ] Pixel da Meta disparando, configurado **por dentro do GTM**, nunca colado
       direto na página, para não duplicar evento com o container global.
+- [ ] VK Digital disparando. Inspetor, aba Rede, filtro `vkdigital`: devem
+      aparecer **três** requisições, uma de cada arquivo. Se alguma repetir, há
+      instalação duplicada em outro ponto. Ver `docs/tracking.md`.
 - [ ] Clique em um botão de cada versão levando ao checkout **com o `sv_var`
       correto na URL**. Este item é o que torna o teste legível: se o parâmetro
       não chegar, não suba tráfego.

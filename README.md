@@ -45,7 +45,9 @@ O que o build aplica em cada arquivo:
 
 **Correção**
 
-1. **GTM** `GTM-PX6PZLNQ` no topo do `<head>` e o `noscript` logo após o `<body>`.
+1. **GTM** `GTM-PX6PZLNQ` no topo do `<head>` e o `noscript` logo após o
+   `<body>`. Logo abaixo, os pixels da **VK Digital** (`QPCsaqlFossljbjphJFJ`),
+   com `preconnect` para o domínio deles. Ver `docs/tracking.md`.
 2. **Meta description, Open Graph e Twitter Card** por versão, mais `canonical`.
 3. **Atribuição de variante:** um script que repassa ao checkout as UTMs que
    vieram do anúncio e carimba `sv_var`, `utm_content` e `sv_cta` em todos os
@@ -98,3 +100,5 @@ VSL em que a Elainne inicia a oferta.
 - `docs/publicacao.md`: passo a passo do deploy e checklist de liberação.
 - `docs/desempenho.md`: o que estava pesando, o que foi feito e os números
   antes e depois.
+- `docs/tracking.md`: GTM e VK Digital, onde estão, eventos do `dataLayer` e
+  como conferir que não há disparo duplicado.
