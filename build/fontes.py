@@ -101,7 +101,10 @@ def _reduzir(dados_woff2, caracteres, saida):
     with open(bruto, "wb") as f:
         f.write(dados_woff2)
 
-    fonte = TTFont(bruto)
+    # recalcTimestamp desligado: por padrão o fontTools grava o horário atual
+    # na tabela head ao salvar, e aí o arquivo muda a cada build mesmo com a
+    # copy intacta, enchendo o histórico do repositório de ruído.
+    fonte = TTFont(bruto, recalcTimestamp=False)
     s = ft_subset.Subsetter(ft_subset.Options(
         layout_features=["kern", "liga", "clig", "calt", "ccmp", "locl"],
         notdef_outline=True,
@@ -110,6 +113,10 @@ def _reduzir(dados_woff2, caracteres, saida):
     ))
     s.populate(text="".join(sorted(caracteres)))
     s.subset(fonte)
+
+    # Data fixa na tabela head. Sem isso, cada build grava o horário atual e o
+    # arquivo muda mesmo quando a copy não mudou, enchendo o histórico do
+    # repositório de diferença que não diz nada.
     fonte.flavor = "woff2"
     fonte.save(saida)
     fonte.close()
