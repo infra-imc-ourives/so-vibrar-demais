@@ -73,8 +73,17 @@ def _para_webp(dados, formato):
 
 
 def extrair_imagens(html, pasta_assets, catalogo):
-    """Troca cada data URI por um arquivo em /assets. `catalogo` é um dict
-    compartilhado entre as páginas, para a mesma imagem virar um arquivo só."""
+    """Troca cada data URI por um arquivo em `assets/`, ao lado do index.html.
+
+    O caminho é relativo de propósito. Com caminho absoluto (`/assets/...`) a
+    página só funciona quando está exatamente na raiz do domínio, e quebra
+    inteira se for publicada em subpasta, em subdomínio com raiz diferente ou
+    aberta como arquivo local. Relativo funciona nos quatro casos.
+
+    `catalogo` guarda os bytes já convertidos, para não recodificar a mesma
+    imagem quatro vezes. Cada página recebe a sua cópia: em subdomínios
+    separados o navegador não compartilha cache entre origens, então a pasta
+    compartilhada não economizava nada e só criava dependência."""
     os.makedirs(pasta_assets, exist_ok=True)
     tamanhos = {}
 
@@ -84,23 +93,22 @@ def extrair_imagens(html, pasta_assets, catalogo):
         chave = hashlib.sha1(dados).hexdigest()[:12]
 
         if chave in catalogo:
-            caminho, dim = catalogo[chave]
-            tamanhos[caminho] = dim
-            return caminho
+            nome, dim, dados = catalogo[chave]
+        else:
+            ext = EXTENSAO.get(formato, "bin")
+            dim = _dimensoes(dados)
+            webp = _para_webp(dados, formato)
+            if webp is not None:
+                dados, ext = webp, "webp"
+            nome = "img-%s.%s" % (chave, ext)
+            catalogo[chave] = (nome, dim, dados)
 
-        ext = EXTENSAO.get(formato, "bin")
-        dim = _dimensoes(dados)
+        destino = os.path.join(pasta_assets, nome)
+        if not os.path.exists(destino):
+            with open(destino, "wb") as f:
+                f.write(dados)
 
-        webp = _para_webp(dados, formato)
-        if webp is not None:
-            dados, ext = webp, "webp"
-
-        nome = "img-%s.%s" % (chave, ext)
-        with open(os.path.join(pasta_assets, nome), "wb") as f:
-            f.write(dados)
-
-        caminho = "/assets/" + nome
-        catalogo[chave] = (caminho, dim)
+        caminho = "assets/" + nome
         tamanhos[caminho] = dim
         return caminho
 
@@ -140,7 +148,7 @@ def anotar_imagens(html, tamanhos):
 def preload_do_topo(html):
     """Preload da imagem de fundo do topo. Ela é pedida pelo CSS, então o
     navegador só descobre que precisa dela depois de montar o CSSOM."""
-    m = re.search(r"url\('(/assets/[^']+)'\)", html)
+    m = re.search(r"url\('(assets/[^']+)'\)", html)
     if not m:
         return html
     link = ('<link rel="preload" as="image" href="%s" fetchpriority="high">\n'
@@ -216,6 +224,29 @@ def adiar_player(html):
         return html, False
     novo = SCRIPT_PLAYER_ADIADO.replace("__PLAYER_SRC__", m.group(1))
     return html[:m.start()] + novo + html[m.end():], True
+
+
+SCRIPT_IMAGEM_AUSENTE = """
+<script>
+/* === Rede de segurança para imagem que não carrega ===
+   Se um arquivo de /assets não chegar, o navegador desenha o ícone de imagem
+   quebrada, que numa página de venda é pior do que não ter a imagem. Aqui a
+   imagem some e o aviso vai para o console, para o problema continuar
+   diagnosticável em vez de virar silêncio. */
+document.addEventListener('error', function (e) {
+  var el = e.target;
+  if (el.tagName !== 'IMG' || el.dataset.svFalhou) return;
+  el.dataset.svFalhou = '1';
+  el.style.visibility = 'hidden';
+  console.warn('[Só Vibrar] imagem não carregou:', el.getAttribute('src'),
+               '· confira se a pasta assets subiu junto com o index.html');
+}, true);
+</script>
+"""
+
+
+def rede_de_seguranca_imagens(html):
+    return html.replace("</body>", SCRIPT_IMAGEM_AUSENTE + "</body>", 1)
 
 
 # ---------------------------------------------------- vídeos do YouTube

@@ -7,38 +7,80 @@ Domínio: `sovibrar.elainneourives.com.br`
 
 ## O que subir
 
-Suba o conteúdo de `dist/`, não o de `baseline/`. Os arquivos em `baseline/`
-são os originais aprovados, sem GTM e sem carimbo de variante.
+**Cada pasta em `dist/` é autossuficiente.** Ela leva o `index.html` e a sua
+própria pasta `assets`, com as imagens e as fontes daquela página. Nada é
+buscado de fora da pasta.
 
-| Arquivo local | Caminho no servidor | URL |
+Vocês publicaram em quatro subdomínios. O mapeamento:
+
+| Pasta local | Versão | Vai para a raiz de |
 |---|---|---|
-| `dist/index.html` | `/index.html` | `sovibrar.elainneourives.com.br/` |
-| `dist/a/index.html` | `/a/index.html` | `.../a/` |
-| `dist/b/index.html` | `/b/index.html` | `.../b/` |
-| `dist/c/index.html` | `/c/index.html` | `.../c/` |
-| `dist/d/index.html` | `/d/index.html` | `.../d/` |
-| `dist/assets/` (pasta inteira) | `/assets/` | `.../assets/` |
-| `servidor/.htaccess` (Apache/LiteSpeed) | `/.htaccess` | não é URL |
+| `dist/a/` | A · VSL pura | `sovibrar1.elainneourives.com.br` |
+| `dist/b/` | B · escada completa | `sovibrar2.elainneourives.com.br` |
+| `dist/c/` | C · híbrida | `sovibrar3.elainneourives.com.br` |
+| `dist/d/` | D · advertorial | `sovibrar4.elainneourives.com.br` |
+| `dist/raiz/` | cópia da B | domínio principal, quando existir |
 
-A raiz é uma cópia da variante B, até o teste apontar a vencedora. Para trocar,
-altere `VARIANTE_RAIZ` em `build/build.py` e rode o build de novo.
+Suba **o conteúdo** de cada pasta, não a pasta em si. No subdomínio 1 deve
+ficar assim:
 
-## Mudou: agora existe uma pasta de imagens
+```
+sovibrar1.elainneourives.com.br/
+├── index.html
+└── assets/
+    ├── img-4fdf662fd6e2.webp
+    ├── img-5f062199f58b.webp
+    └── fonts/
+        ├── montserrat-400.woff2
+        ├── montserrat-700.woff2
+        └── montserrat-800.woff2
+```
 
-Até a otimização de desempenho, cada HTML era autossuficiente, com as imagens
-em base64 dentro dele. **Isso mudou.** As imagens saíram do HTML e vivem em
-`dist/assets/`, e é por isso que a versão A caiu de 270 KB para 11 KB.
+A regra que evita o problema: **`assets` sempre ao lado do `index.html`**, nunca
+um nível acima, nunca em outro subdomínio.
 
-Consequências práticas:
+## Por que os caminhos são relativos
 
-- **A pasta `assets/` precisa subir junto, na raiz do domínio**, não dentro de
-  `/a/` ou `/b/`. Os caminhos no HTML são absolutos (`/assets/img-....webp`),
-  então uma única pasta serve as cinco páginas e o navegador reaproveita o
-  cache entre elas.
-- Se você subir só os HTML e esquecer a pasta, **as páginas abrem sem nenhuma
-  imagem**. Logo, fundo, mockups, tudo. Suba `assets/` primeiro.
-- Os nomes dos arquivos têm o conteúdo embutido (`img-<código>.webp`). Trocar
-  uma imagem gera um nome novo, então não existe problema de cache antigo.
+Até a correção de setembro, o HTML pedia `/assets/img-....webp`, com barra na
+frente. Barra na frente significa "a partir da raiz do domínio", e isso só
+funciona quando a página está exatamente na raiz e a pasta `assets` também.
+
+Publicando em quatro subdomínios, cada um precisaria da sua própria `/assets/`
+na raiz. Qualquer desencontro deixava a página sem imagem nenhuma, e sem fonte
+também, já que as fontes vivem em `assets/fonts/`.
+
+Agora o HTML pede `assets/img-....webp`, sem barra. Isso significa "ao lado do
+arquivo", e funciona em qualquer arranjo:
+
+| Arranjo | Funciona |
+|---|---|
+| Pasta na raiz de um subdomínio | sim |
+| Páginas em subpasta de um domínio único (`/a/`, `/b/`) | sim |
+| Arquivo aberto direto do disco, com duplo clique | sim |
+
+Os três casos foram testados em navegador antes de publicar esta versão.
+
+## Se uma imagem não aparecer
+
+A página passou a esconder imagem que não carrega, em vez de mostrar o ícone de
+imagem quebrada. **Mas ela avisa no console**, para o problema não virar
+silêncio. Abra o inspetor, aba Console, e procure:
+
+```
+[Só Vibrar] imagem não carregou: assets/img-....webp
+```
+
+Se aparecer, a pasta `assets` não subiu junto ou não está ao lado do
+`index.html`. Confirme abrindo o arquivo direto no navegador:
+
+```
+https://sovibrar1.elainneourives.com.br/assets/img-4fdf662fd6e2.webp
+```
+
+- **Abre a imagem:** o arquivo está lá, e o problema é outro.
+- **404:** a pasta não subiu, ou subiu no lugar errado.
+- **Baixa em vez de mostrar:** o servidor não conhece WebP. Aplique o
+  `servidor/.htaccess`, que declara o tipo.
 
 ## Como publicar
 
@@ -76,9 +118,10 @@ E a pasta `assets/` continua sendo obrigatória nessa alternativa também.
 - [ ] Clique em um botão de cada versão levando ao checkout **com o `sv_var`
       correto na URL**. Este item é o que torna o teste legível: se o parâmetro
       não chegar, não suba tráfego.
-- [ ] Pasta `assets/` no ar. Abra `sovibrar.elainneourives.com.br/assets/` e
-      confirme que o servidor entrega os arquivos. Sem ela, as páginas ficam
-      sem imagem nenhuma.
+- [ ] Pasta `assets/` ao lado do `index.html` em **cada** subdomínio. Abra uma
+      imagem direto pela URL para confirmar. Sem ela, a página fica sem imagem
+      e sem a fonte Montserrat.
+- [ ] Console do navegador sem nenhuma linha `[Só Vibrar] imagem não carregou`.
 - [ ] Configuração do servidor aplicada. Use `servidor/.htaccess` (Apache,
       LiteSpeed, cPanel) ou `servidor/nginx.conf`. Confira depois com
       `curl -sI -H "Accept-Encoding: gzip, br" <url> | grep -i content-encoding`.

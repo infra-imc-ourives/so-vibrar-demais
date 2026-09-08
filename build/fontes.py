@@ -158,24 +158,25 @@ def aplicar(html, pesos, italico, pasta_assets, catalogo, preload_pesos=None):
         nome = "montserrat-%d%s.woff2" % (peso, "i" if ital else "")
         destino = os.path.join(pasta, nome)
 
-        if chave in catalogo:
-            # Já gerada por outra página. Confere se cobre esta copy também.
-            faltando = catalogo[chave]["faltando"] & precisa
-            if faltando:
-                # Copy desta página exige caracteres novos: regera com a união.
-                catalogo[chave]["chars"] |= precisa
-                faltando = _reduzir(_origem_woff2(peso, ital),
-                                    catalogo[chave]["chars"], destino)
-                catalogo[chave]["faltando"] = faltando
+        # Cada página recebe a sua cópia da fonte: em subdomínios separados o
+        # navegador não compartilha cache entre origens, e o caminho relativo
+        # exige o arquivo ao lado do index.html.
+        if chave in catalogo and not (catalogo[chave]["faltando"] & precisa):
+            with open(destino, "wb") as f:
+                f.write(catalogo[chave]["bytes"])
+            faltando = catalogo[chave]["faltando"]
         else:
+            uniao = precisa | catalogo.get(chave, {}).get("chars", set())
             try:
-                faltando = _reduzir(_origem_woff2(peso, ital), precisa, destino)
+                faltando = _reduzir(_origem_woff2(peso, ital), uniao, destino)
             except Exception as e:
                 return html, {"ok": False, "motivo": str(e)}
-            catalogo[chave] = {"chars": set(precisa), "faltando": faltando}
+            with open(destino, "rb") as f:
+                catalogo[chave] = {"chars": uniao, "faltando": faltando,
+                                   "bytes": f.read()}
 
         faltas |= catalogo[chave]["faltando"]
-        arquivos[chave] = "/assets/fonts/" + nome
+        arquivos[chave] = "assets/fonts/" + nome
         regras.append(
             "@font-face{font-family:'Montserrat';font-style:%s;font-weight:%d;"
             "font-display:swap;src:url('%s') format('woff2')}"
@@ -210,6 +211,6 @@ def aplicar(html, pesos, italico, pasta_assets, catalogo, preload_pesos=None):
     html = html.replace("<style>", "<style>\n" + "\n".join(regras) + "\n", 1)
 
     tamanho = sum(os.path.getsize(os.path.join(pasta, os.path.basename(v)))
-                  for v in arquivos.values())
+                  for v in set(arquivos.values()))
     return html, {"ok": True, "arquivos": len(arquivos), "bytes": tamanho,
                   "glifos": len(precisa)}

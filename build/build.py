@@ -27,11 +27,20 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE = os.path.join(RAIZ, "baseline")
 DIST = os.path.join(RAIZ, "dist")
 
-DOMINIO = "https://sovibrar.elainneourives.com.br"
+# URL pública de cada versão. É daqui que saem o canonical, o og:url e o
+# endereço da imagem de compartilhamento. Apontar para endereço que não existe
+# faz o link compartilhado no WhatsApp vir sem capa e confunde o buscador.
+DOMINIOS = {
+    "a": "https://sovibrar1.elainneourives.com.br",
+    "b": "https://sovibrar2.elainneourives.com.br",
+    "c": "https://sovibrar3.elainneourives.com.br",
+    "d": "https://sovibrar4.elainneourives.com.br",
+}
 
-# Imagem de compartilhamento. PRECISA ser enviada para a raiz do domínio.
-# Enquanto o arquivo não existir, o link compartilhado no WhatsApp aparece sem capa.
-OG_IMAGE = DOMINIO + "/og-so-vibrar.jpg"
+# Imagem de compartilhamento. PRECISA ser enviada para a raiz de cada
+# subdomínio. Enquanto o arquivo não existir, o link compartilhado no WhatsApp
+# aparece sem capa.
+OG_IMAGE_NOME = "/og-so-vibrar.jpg"
 
 # Otimizações de carregamento. Ver docs/desempenho.md antes de desligar.
 EXTRAIR_IMAGENS = True   # tira as imagens de base64 do HTML e põe em /assets
@@ -200,7 +209,8 @@ def aplicar_vk(html):
 
 def montar_head(variante, dados):
     """Meta description, Open Graph, Twitter Card e canonical."""
-    url = "%s/%s/" % (DOMINIO, variante)
+    base = DOMINIOS[variante]
+    url = base + "/"
     return """<meta name="description" content="{descricao}">
 <link rel="canonical" href="{url}">
 <meta name="theme-color" content="#050508">
@@ -219,7 +229,7 @@ def montar_head(variante, dados):
         descricao=dados["descricao"],
         titulo=dados["titulo"],
         url=url,
-        imagem=OG_IMAGE,
+        imagem=base + OG_IMAGE_NOME,
     )
 
 
@@ -369,7 +379,6 @@ def main():
         shutil.rmtree(DIST)
     os.makedirs(DIST)
 
-    pasta_assets = os.path.join(DIST, "assets")
     catalogo = {}
     catalogo_fontes = {}
     adiados = []
@@ -383,6 +392,10 @@ def main():
             alturas = json.load(f).get("alturas", {})
 
     for variante, dados in VARIANTES.items():
+        destino = os.path.join(DIST, variante)
+        pasta_assets = os.path.join(destino, "assets")
+        os.makedirs(pasta_assets)
+
         origem = os.path.join(BASELINE, dados["arquivo"])
         with open(origem, encoding="utf-8") as f:
             html = f.read()
@@ -429,12 +442,13 @@ def main():
             if trocou:
                 adiados.append(variante)
 
+        if EXTRAIR_IMAGENS:
+            html = otimizacao.rede_de_seguranca_imagens(html)
+
         html = aplicar_atribuicao(html, variante)
         if variante == "a":
             html = aplicar_cta_a(html)
 
-        destino = os.path.join(DIST, variante)
-        os.makedirs(destino)
         caminho = os.path.join(destino, "index.html")
         with open(caminho, "w", encoding="utf-8") as f:
             f.write(html)
@@ -443,20 +457,27 @@ def main():
         print("  dist/%s/index.html  %6.0f KB   (era %.0f KB, %.0f%% menor)"
               % (variante, kb, bruto / 1024, 100 * (1 - kb * 1024 / bruto)))
 
-    # Raiz do domínio serve a mesma página da variante escolhida.
-    shutil.copyfile(
-        os.path.join(DIST, VARIANTE_RAIZ, "index.html"),
-        os.path.join(DIST, "index.html"),
-    )
-    print("  dist/index.html             (cópia da variante %s)" % VARIANTE_RAIZ.upper())
+    # Pasta pronta para o domínio principal, quando ele existir. É uma cópia
+    # inteira da variante escolhida, e não só do index.html, porque cada pasta
+    # precisa levar as próprias imagens e fontes.
+    raiz = os.path.join(DIST, "raiz")
+    shutil.copytree(os.path.join(DIST, VARIANTE_RAIZ), raiz)
+    print("  dist/raiz/                  (cópia completa da variante %s)"
+          % VARIANTE_RAIZ.upper())
 
-    if EXTRAIR_IMAGENS and os.path.isdir(pasta_assets):
-        arquivos = sorted(a for a in os.listdir(pasta_assets)
-                          if os.path.isfile(os.path.join(pasta_assets, a)))
-        total = sum(os.path.getsize(os.path.join(pasta_assets, a)) for a in arquivos)
-        print("\n  dist/assets/  %d imagens, %.0f KB no total" % (len(arquivos), total / 1024))
-        for a in arquivos:
-            print("     %-28s %6.0f KB" % (a, os.path.getsize(os.path.join(pasta_assets, a)) / 1024))
+    if EXTRAIR_IMAGENS:
+        print("\n  Cada pasta é autossuficiente: index.html mais a sua própria")
+        print("  pasta assets. Nada é referenciado de fora.")
+        for v in sorted(list(VARIANTES) + ["raiz"]):
+            pa = os.path.join(DIST, v, "assets")
+            if not os.path.isdir(pa):
+                continue
+            n = t = 0
+            for base, _, arqs in os.walk(pa):
+                for a in arqs:
+                    n += 1
+                    t += os.path.getsize(os.path.join(base, a))
+            print("     dist/%-6s %2d arquivos em assets, %5.0f KB" % (v + "/", n, t / 1024))
         if not otimizacao.PILLOW:
             print("     AVISO: Pillow ausente. Sem conversão para WebP e sem width/height.")
 
@@ -464,13 +485,8 @@ def main():
         print("\n  Player adiado nas versões: %s" % ", ".join(sorted(adiados)).upper())
 
     if resumo_fontes:
-        pasta_f = os.path.join(pasta_assets, "fonts")
-        arqs = sorted(os.listdir(pasta_f))
-        total = sum(os.path.getsize(os.path.join(pasta_f, a)) for a in arqs)
-        print("\n  dist/assets/fonts/  %d arquivos, %.0f KB, %d glifos por fonte"
-              % (len(arqs), total / 1024, resumo_fontes["glifos"]))
-        for a in arqs:
-            print("     %-30s %6.1f KB" % (a, os.path.getsize(os.path.join(pasta_f, a)) / 1024))
+        print("\n  Montserrat reduzida a %d glifos, %.1f KB por peso."
+              % (resumo_fontes["glifos"], resumo_fontes["bytes"] / 1024 / max(1, resumo_fontes["arquivos"])))
 
     for a in avisos:
         print("\n  AVISO: %s" % a)
