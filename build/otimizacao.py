@@ -385,3 +385,44 @@ def pular_render_fora_da_tela(html, alturas=None, a_partir_de=2, minimo_total=60
 
     novo_html = novo_html.replace("<style>", "<style>" + "\n".join(regras), 1)
     return novo_html, len(usadas)
+
+
+# ------------------------------------------------------- faixa do topo
+
+FAIXA_CSS = """
+:root{--sv-faixa:44px}
+.sv-faixa{background:#E3161F;color:#fff;min-height:var(--sv-faixa);
+display:flex;align-items:center;justify-content:center;text-align:center;
+padding:8px 16px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
+font-size:clamp(13px,3.2vw,18px);line-height:1.2;position:relative;z-index:5}
+/* A versão A ocupa a tela inteira. Sem descontar a faixa, a página passaria a
+   ter 100vh mais a altura dela, criando uma rolagem que não existia. */
+.sv-faixa ~ .pure{min-height:calc(100vh - var(--sv-faixa))}
+"""
+
+
+def faixa_topo(html, texto):
+    """Insere a faixa de urgência como primeiro elemento visível da página.
+
+    Entra depois do noscript do GTM, que é invisível, para ser de fato a
+    primeira coisa que a pessoa vê. A altura é fixa e declarada em CSS, então
+    a faixa não empurra o conteúdo depois que a página já pintou: o Cumulative
+    Layout Shift continua onde estava.
+
+    O vermelho é #E3161F e não o vermelho puro: contra branco, #FF0000 dá
+    contraste de 4,00 e reprova no mínimo de 4,5 exigido para texto. #E3161F
+    dá 4,77, passa, e a diferença visual entre os dois é imperceptível."""
+    if "sv-faixa" in html:
+        return html, False
+
+    bloco = '<div class="sv-faixa">%s</div>\n' % texto
+
+    marcador = "<!-- End Google Tag Manager -->\n"
+    pos = html.find(marcador, html.find("<body>"))
+    if pos != -1:
+        corte = pos + len(marcador)
+        html = html[:corte] + "\n" + bloco + html[corte:]
+    else:
+        html = html.replace("<body>", "<body>\n" + bloco, 1)
+
+    return html.replace("<style>", "<style>" + FAIXA_CSS, 1), True

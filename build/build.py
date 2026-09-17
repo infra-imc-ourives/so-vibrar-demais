@@ -42,6 +42,13 @@ DOMINIOS = {
 # aparece sem capa.
 OG_IMAGE_NOME = "/og-so-vibrar.jpg"
 
+# Faixa de urgência no topo. Para tirar de uma versão, ponha False.
+# Recomendação registrada: a versão D é um advertorial, e converte por não
+# parecer anúncio. A faixa denuncia a venda no primeiro segundo e apaga a
+# diferença que justifica essa versão existir no teste.
+FAIXA_TEXTO = "Assista antes que saia do ar"
+FAIXA_TOPO = {"a": True, "b": True, "c": True, "d": True}
+
 # Otimizações de carregamento. Ver docs/desempenho.md antes de desligar.
 EXTRAIR_IMAGENS = True   # tira as imagens de base64 do HTML e põe em /assets
 ADIAR_PLAYER = True      # pede o script da VSL fora do caminho crítico
@@ -382,6 +389,7 @@ def main():
     catalogo = {}
     catalogo_fontes = {}
     adiados = []
+    faixas = []
     avisos = []
     resumo_fontes = None
 
@@ -442,6 +450,11 @@ def main():
             if trocou:
                 adiados.append(variante)
 
+        if FAIXA_TOPO.get(variante):
+            html, posta = otimizacao.faixa_topo(html, FAIXA_TEXTO)
+            if posta:
+                faixas.append(variante)
+
         if EXTRAIR_IMAGENS:
             html = otimizacao.rede_de_seguranca_imagens(html)
 
@@ -480,6 +493,10 @@ def main():
             print("     dist/%-6s %2d arquivos em assets, %5.0f KB" % (v + "/", n, t / 1024))
         if not otimizacao.PILLOW:
             print("     AVISO: Pillow ausente. Sem conversão para WebP e sem width/height.")
+
+    if faixas:
+        print("\n  Faixa \"%s\" no topo das versões: %s"
+              % (FAIXA_TEXTO, ", ".join(sorted(faixas)).upper()))
 
     if ADIAR_PLAYER:
         print("\n  Player adiado nas versões: %s" % ", ".join(sorted(adiados)).upper())

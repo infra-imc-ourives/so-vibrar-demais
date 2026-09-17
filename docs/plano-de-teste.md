@@ -61,6 +61,28 @@ Antes de rodar C ou D contra B, resolva o que está no item 2.2 da auditoria: C 
 D não apresentam preço nenhum. Do jeito que estão, elas perdem para B por
 ausência de oferta, não por formato, e o teste não responde nada.
 
+### A faixa de urgência na versão D merece decisão
+
+A faixa vermelha "Assista antes que saia do ar" está nas quatro versões, por
+pedido. Na D ela trabalha contra a própria peça.
+
+A D é um advertorial. Ela converte por **não** parecer anúncio: manchete
+editorial, assinatura do Instituto, texto corrido. A pessoa lê antes de perceber
+que está sendo vendida, e é exatamente aí que o formato ganha em tráfego frio.
+
+Uma tarja vermelha de escassez logo acima da manchete denuncia a venda no
+primeiro segundo. O que sobra não é um advertorial nem uma página de vendas: é
+um anúncio disfarçado de artigo, o que costuma render menos do que assumir uma
+coisa ou outra.
+
+O efeito prático no teste é pior do que na página: com a faixa, D e C ficam
+parecidas demais, e a rodada deixa de comparar formato editorial contra página
+de venda, que é a pergunta que a D existe para responder.
+
+Recomendação: **rodar a D sem a faixa**, com `FAIXA_TOPO["d"] = False`. Se a
+intenção for testar a faixa em si, ela vira uma quinta variante, não um
+acréscimo silencioso a uma variante existente.
+
 ## Como dividir o tráfego
 
 **Use o teste A/B nativo do Gerenciador de Anúncios da Meta**, com uma URL por

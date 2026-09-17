@@ -60,6 +60,26 @@ arquivo", e funciona em qualquer arranjo:
 
 Os três casos foram testados em navegador antes de publicar esta versão.
 
+## Faixa de urgência no topo
+
+As quatro páginas trazem a faixa vermelha com "Assista antes que saia do ar"
+como primeiro elemento visível. Ela tem altura fixa declarada em CSS, então não
+empurra o conteúdo depois que a página já pintou.
+
+O vermelho é `#E3161F`, não o vermelho puro. Contra branco, `#FF0000` dá
+contraste de 4,00 e reprova no mínimo de 4,5 exigido para texto; `#E3161F` dá
+4,77 e passa. A diferença visual entre os dois é imperceptível, e a nota de
+acessibilidade continua onde estava.
+
+Para tirar a faixa de uma versão, mude a linha correspondente em
+`build/build.py` e rode o build:
+
+```python
+FAIXA_TOPO = {"a": True, "b": True, "c": True, "d": False}
+```
+
+Para mudar o texto, altere `FAIXA_TEXTO` no mesmo arquivo.
+
 ## Se uma imagem não aparecer
 
 A página passou a esconder imagem que não carrega, em vez de mostrar o ícone de
