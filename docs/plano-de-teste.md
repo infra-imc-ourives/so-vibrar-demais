@@ -61,6 +61,21 @@ Antes de rodar C ou D contra B, resolva o que está no item 2.2 da auditoria: C 
 D não apresentam preço nenhum. Do jeito que estão, elas perdem para B por
 ausência de oferta, não por formato, e o teste não responde nada.
 
+### A versão A ganhou uma headline
+
+A A passou a trazer "Reprograme sua mente para conquistar AMOR, SAÚDE e RIQUEZA,
+com apenas 10 minutos por dia" acima do vídeo.
+
+A distinção entre A e C estreita um pouco: A era logo, aviso e vídeo, e agora é
+logo, headline, aviso e vídeo. C continua bem mais completa, com subheadline,
+prova social em números, bloco de autoridade e dois botões, então a diferença
+entre as duas segue existindo. A pergunta do teste muda de "com copy contra sem
+copy" para "quanta copy", que continua valendo.
+
+Vale registrar porque afeta a leitura: se A e C empatarem, o empate não diz que
+prova social é irrelevante, diz que ela não compensou o que a headline já
+entregou.
+
 ### A faixa de urgência na versão D merece decisão
 
 A faixa vermelha "Assista antes que saia do ar" está nas quatro versões, por
