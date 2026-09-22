@@ -99,6 +99,12 @@ footer .links a { color:inherit; text-decoration:none; }
 @media (min-width:900px) { .pure .vsl-wrap { max-width:clamp(520px, calc((100vh - 430px) * 16 / 9), 900px); } }
 #cta-area { margin-top:36px; opacity:0; visibility:hidden; transform:translateY(8px); transition:opacity .6s ease, transform .6s ease; }
 #cta-area.show { opacity:1; visibility:visible; transform:none; }
+.pure .prova { margin-top:16px; display:inline-flex; align-items:center; gap:9px; padding:9px 19px; border:1px solid rgba(255,140,80,0.34); border-radius:40px; background:rgba(255,107,43,0.09); font-size:clamp(12.5px,1.6vw,15px); font-weight:600; color:var(--cinza); line-height:1.35; opacity:0; transform:translateY(6px); transition:opacity .7s ease, transform .7s ease; }
+.pure .prova.show { opacity:1; transform:none; }
+.pure .prova b { color:var(--laranja-claro); font-weight:800; }
+.pure .prova svg { flex:0 0 auto; }
+.pure .prova span { display:block; text-align:left; }
+@media (prefers-reduced-motion:reduce) { .pure .prova { transition:none; } }
 .pure .sound { margin-top:18px; font-size:13px; color:rgba(255,255,255,0.65); }
 </style>
 <link rel="preload" as="image" href="assets/img-994b17222e98.webp" fetchpriority="high">
@@ -120,6 +126,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <h1>Reprograme sua mente para conquistar <span class="oc">AMOR, SAÚDE e RIQUEZA</span>, com apenas 10&nbsp;minutos por dia</h1>
   <p class="warn">Aumente o volume e assista até o final</p>
   <div class="vsl-wrap"><vturb-smartplayer id="vid-6a918b6c9fa2c0570e3bfe55" style="display: block; margin: 0 auto; width: 100%;"><div class="vturb-player-placeholder" style="position: relative; width: 100%; padding: 56.25% 0 0; z-index: 0; background-color: black;"></div></vturb-smartplayer></div>
+  <p class="prova" id="prova-social"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FF8C50" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Mais de <b>2 milhões de pessoas</b> já aplicaram a Técnica Hertz</span></p>
   <p class="sound">O vídeo acima revela os 5 cadeados emocionais que estão travando a sua vida.</p>
   <div id="cta-area">
     <a class="cta cta-pulse" href="https://pay.hub.la/hBZXUS60oESBNuUxf9pH">Quero destravar minha vida agora</a>
@@ -132,6 +139,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <p class="links"><a href="https://elainneourives.com.br/termos-de-uso/">TERMOS DE USO</a> · <a href="https://elainneourives.com.br/politica-de-privacidade/">POLÍTICA DE PRIVACIDADE</a></p>
   </div>
 </footer>
+<script>
+/* O selo de prova social entra alguns segundos depois, para não competir com
+   o play. O texto é fixo e verdadeiro: é o mesmo número já publicado nas
+   versões B, C e D. Nada aqui é gerado nem sorteado. */
+setTimeout(function () {
+  var e = document.getElementById('prova-social');
+  if (e) e.classList.add('show');
+}, 4000);
+</script>
 
 <script>
 /* === Player da VSL · carregamento fora do caminho crítico ===
